@@ -1,8 +1,4 @@
-import {
-  SubscribeMessage,
-  WebSocketGateway,
-  WebSocketServer,
-} from '@nestjs/websockets';
+import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway()
@@ -10,10 +6,10 @@ export class WebsocketGateway {
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage('message')
-  handleMessage(client: Socket, payload: any): string {
-    return 'Hello world!';
-  }
+  // @SubscribeMessage('message')
+  // handleMessage(client: Socket, payload: any): string {
+  //   return 'Hello world!';
+  // }
 
   // 接続時の処理
   handleConnection(client: Socket) {
