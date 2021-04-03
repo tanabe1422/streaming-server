@@ -4,6 +4,7 @@ import { Server, Socket } from 'socket.io';
 import { RoomController } from './room/RoomController';
 import { UserController } from './room/UserController';
 import { User } from './room/User';
+
 @WebSocketGateway()
 export class WebsocketGateway {
   @WebSocketServer()
@@ -58,7 +59,19 @@ export class WebsocketGateway {
    * @returns {string} room_id ルームID
    */
   @SubscribeMessage('create_room')
-  handleCreateRoom(client: Socket): CreateRoomRes {
+  createRoomHandler(client: Socket, user_name: string): CreateRoomRes {
+    // ユーザ名のチェック
+    if (!user_name) {
+      return { result: false };
+    }
+
+    // ユーザ情報取得 存在しない場合はreturn
+    const user: User | undefined = this.users.getUser(client.id);
+    if (user === undefined) return { result: false };
+
+    // 名前をセット
+    user.name = user_name;
+
     /** ユーザが入室しているルーム数 */
     const room_count: number = Object.keys(client.rooms).length;
 
@@ -73,11 +86,9 @@ export class WebsocketGateway {
       // ルーム生成
       this.rooms.createRoom(room_id);
 
-      // データ側の入室処理
-      this.rooms.join(room_id, client.id);
-
-      // websocket側の入室処理
-      client.join(room_id);
+      // 入室処理
+      this.rooms.join(room_id, client.id); // データ側
+      client.join(room_id); // websocket側
 
       return { result: true, room_id };
     } else {
@@ -162,6 +173,7 @@ export class WebsocketGateway {
   }
 }
 
+/** create_roomのResponse */
 export type CreateRoomRes = {
   result: boolean;
   room_id?: string;
