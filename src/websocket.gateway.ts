@@ -5,7 +5,7 @@ import { RoomController } from './room/RoomController';
 @WebSocketGateway()
 export class WebsocketGateway {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   rooms: RoomController;
 

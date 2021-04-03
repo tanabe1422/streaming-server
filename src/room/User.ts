@@ -9,6 +9,7 @@ export class User {
 
   constructor(id: string) {
     this._id = id;
+    this._name = `Guest(${id})`;
   }
 
   /** ユーザ名 */
