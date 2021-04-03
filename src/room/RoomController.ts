@@ -11,12 +11,14 @@ export class RoomController {
   createRoom(room_id: string) {
     const room: Room = new Room(room_id);
     this.rooms[room_id] = room;
+    console.log('create_room:', room_id);
   }
 
   /** ルーム削除 */
   deleteRoom(room_id: string): boolean {
     if (this.rooms[room_id]) {
       delete this.rooms[room_id];
+      console.log('delete_room:', room_id);
     }
 
     return true;
@@ -29,6 +31,7 @@ export class RoomController {
    */
   join(room_id: string, user_id: string) {
     this.rooms[room_id].addUser(user_id);
+    console.log('join:', user_id, 'enters', room_id);
   }
 
   /**
@@ -41,11 +44,21 @@ export class RoomController {
 
     // ルームからユーザを削除
     room.removeUser(user_id);
+    console.log('leave:', user_id, 'leaves', room_id);
 
     // 空のルームを削除
     if (room.userCount === 0) {
       this.deleteRoom(room_id);
     }
+  }
+
+  /** 全てのルームからユーザを退室 */
+  leaveAll(user_id: string) {
+    Object.keys(this.rooms).forEach((room_id) => {
+      if (this.rooms[room_id].userExists(user_id)) {
+        this.leave(room_id, user_id);
+      }
+    });
   }
 
   /**

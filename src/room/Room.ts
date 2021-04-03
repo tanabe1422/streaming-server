@@ -1,6 +1,8 @@
+import { User } from './User';
+
 export class Room {
   private _id: string;
-  users: { [key: string]: User };
+  private users: { [key: string]: User };
 
   constructor(room_id: string) {
     this._id = room_id;
@@ -32,32 +34,13 @@ export class Room {
   get userCount(): number {
     return Object.keys(this.users).length;
   }
-}
 
-/**
- * 参加しているユーザ
- * @param id {string} ユーザID
- */
-export class User {
-  private _id: string;
-  private _name: string;
-
-  constructor(id: string) {
-    this._id = id;
-  }
-
-  /** ユーザ名 */
-  set name(name: string) {
-    this._name = name;
-  }
-
-  /** ユーザ名 */
-  get name(): string {
-    return this._name;
-  }
-
-  /** ユーザID */
-  get id(): string {
-    return this._id;
+  /**
+   * ルームにユーザが存在するか
+   * @param user_id {string} ユーザID
+   * @returns {boolean}
+   */
+  userExists(user_id: string): boolean {
+    return !!this.users[user_id];
   }
 }

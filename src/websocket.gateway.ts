@@ -1,10 +1,7 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import * as uuid from 'node-uuid';
+import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import uuid from 'node-uuid';
 import { RoomController } from './room/RoomController';
-import { timeStamp } from 'node:console';
-import { truncate } from 'node:fs';
-
 @WebSocketGateway()
 export class WebsocketGateway {
   @WebSocketServer()
@@ -31,16 +28,14 @@ export class WebsocketGateway {
    * @param client {Socket} 接続者情報
    */
   handleDisconnect(client: Socket) {
-    // データ側の退室処理
-    Object.keys(client.rooms).forEach((key) => {
-      const room_id = client.rooms[key];
-      if (key !== room_id) {
-        this.rooms.leave(room_id, client.id);
-      }
-    });
+    // 全てのルームのデータ
+    // console.log(client.adapter.rooms);
 
-    // websocket側の退室処理
-    client.leaveAll();
+    // データ側の退室処理
+    this.rooms.leaveAll(client.id);
+
+    // websocket側の退室処理は自動で行われるため、必要なし
+    // client.leaveAll();
 
     console.log(`dissconnect: ${client.id}`);
   }
@@ -53,7 +48,7 @@ export class WebsocketGateway {
    * @returns {string} room_id ルームID
    */
   @SubscribeMessage('create_room')
-  handleCreateRoom(client: Socket): createRoomRes {
+  handleCreateRoom(client: Socket): CreateRoomRes {
     /** ユーザが入室しているルーム数 */
     const room_count: number = Object.keys(client.rooms).length;
 
@@ -104,6 +99,24 @@ export class WebsocketGateway {
     return true;
   }
 
+  @SubscribeMessage('send_message')
+  sendMessageHandler(client: Socket, msg: string) {
+    // TODO: msgのバリデーション
+
+    /** レスポンスデータ */
+    const newMsgRes: NewMsgRes = {
+      user_id: client.id,
+      msg
+    };
+
+    Object.keys(client.rooms).forEach((room_id) => {
+      if (room_id !== client.id) {
+        // 自分以外に送信
+        client.broadcast.to(room_id).emit('new_message', newMsgRes);
+      }
+    });
+  }
+
   /**
    * 参加ルーム数の取得
    * @param client {Socket} websocket接続データ
@@ -114,7 +127,13 @@ export class WebsocketGateway {
   }
 }
 
-export type createRoomRes = {
+export type CreateRoomRes = {
   result: boolean;
   room_id?: string;
+};
+
+export type NewMsgRes = {
+  user_id: string;
+  user_name?: string;
+  msg: string;
 };
