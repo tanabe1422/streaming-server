@@ -1,5 +1,6 @@
 import { User } from './User';
 
+/** ルーム */
 export class Room {
   private _id: string;
   private users: { [key: string]: User };

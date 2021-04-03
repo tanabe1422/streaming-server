@@ -1,15 +1,18 @@
 /**
- * 参加しているユーザ
+ * ユーザ
  * @param id {string} ユーザID
  */
-
 export class User {
-  private _id: string;
+  readonly id: string;
   private _name: string;
 
-  constructor(id: string) {
-    this._id = id;
-    this._name = `Guest(${id})`;
+  /**
+   * コンストラクタ
+   * @param user_id {string} ユーザID
+   */
+  constructor(user_id: string) {
+    this.id = user_id;
+    this._name = `Guest`;
   }
 
   /** ユーザ名 */
@@ -20,10 +23,5 @@ export class User {
   /** ユーザ名 */
   get name(): string {
     return this._name;
-  }
-
-  /** ユーザID */
-  get id(): string {
-    return this._id;
   }
 }

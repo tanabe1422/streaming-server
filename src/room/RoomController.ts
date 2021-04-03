@@ -1,5 +1,6 @@
 import { Room } from './Room';
 
+/** ルーム情報を管理するクラス */
 export class RoomController {
   rooms: { [key: string]: Room };
 

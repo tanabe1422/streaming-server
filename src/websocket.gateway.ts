@@ -2,15 +2,20 @@ import * as uuid from 'node-uuid';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { RoomController } from './room/RoomController';
+import { UserController } from './room/UserController';
+import { User } from './room/User';
 @WebSocketGateway()
 export class WebsocketGateway {
   @WebSocketServer()
   server!: Server;
-
+  /** ルーム情報を扱う */
   rooms: RoomController;
+  /** ユーザ情報を扱う */
+  users: UserController;
 
   constructor() {
     this.rooms = new RoomController();
+    this.users = new UserController();
   }
 
   /**
@@ -19,6 +24,8 @@ export class WebsocketGateway {
    */
   handleConnection(client: Socket) {
     console.log(`connect: ${client.id}`);
+    // ユーザ情報を追加
+    this.users.add(client.id);
     // 恐らくcookie取り出せる。パースされてない。
     // client.handshake.headers.cookie;
   }
@@ -33,6 +40,9 @@ export class WebsocketGateway {
 
     // データ側の退室処理
     this.rooms.leaveAll(client.id);
+
+    // ユーザデータ削除
+    this.users.remove(client.id);
 
     // websocket側の退室処理は自動で行われるため、必要なし
     // client.leaveAll();
@@ -99,13 +109,38 @@ export class WebsocketGateway {
     return true;
   }
 
+  /**
+   * ユーザ名設定処理
+   * @param client websocket接続情報
+   * @param user_name {string} ユーザ名
+   */
+  @SubscribeMessage('set_name')
+  setNameHandler(client: Socket, user_name: string): boolean {
+    // TODO: user_nameのバリデーション
+
+    // ユーザ情報取得
+    const user: User | undefined = this.users.getUser(client.id);
+
+    if (user) {
+      // 名前をセット
+      user.name = user_name;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   @SubscribeMessage('send_message')
   sendMessageHandler(client: Socket, msg: string) {
     // TODO: msgのバリデーション
 
+    // ユーザ名取得
+    const user_name = this.users.getUser(client.id)?.name || `Unknown User(${client.id}`;
+
     /** レスポンスデータ */
     const newMsgRes: NewMsgRes = {
       user_id: client.id,
+      user_name,
       msg
     };
 
@@ -133,7 +168,10 @@ export type CreateRoomRes = {
 };
 
 export type NewMsgRes = {
+  /** ユーザID */
   user_id: string;
+  /** ユーザ名 */
   user_name?: string;
+  /** メッセージ */
   msg: string;
 };
