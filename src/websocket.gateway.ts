@@ -28,7 +28,7 @@ export class WebsocketGateway {
     // ユーザ情報を追加
     this.users.add(client.id);
     // 恐らくcookie取り出せる。パースされてない。
-    // client.handshake.headers.cookie;
+    // console.log(client.handshake.headers.cookie);
   }
 
   /**
@@ -84,7 +84,7 @@ export class WebsocketGateway {
       const room_id: string = uuid.v4();
 
       // ルーム生成
-      this.rooms.createRoom(room_id);
+      this.rooms.createRoom(room_id, client.id);
 
       // 入室処理
       this.rooms.join(room_id, client.id); // データ側
@@ -161,6 +161,29 @@ export class WebsocketGateway {
         client.broadcast.to(room_id).emit('new_message', newMsgRes);
       }
     });
+  }
+
+  @SubscribeMessage('youtube_play')
+  youtubePlayHandler(client: Socket, time: number) {
+    if (!time) return;
+
+    console.log('youtube_play', time);
+    client.broadcast.emit('youtube_play', time);
+  }
+
+  @SubscribeMessage('youtube_pause')
+  youtubeStopHandler(client: Socket, time: number) {
+    if (!time) return;
+
+    console.log('youtube_pause');
+
+    client.broadcast.emit('youtube_pause', time);
+  }
+
+  @SubscribeMessage('youtube_add_movie')
+  youtubeAddMovieHandler(client: Socket, url: string) {
+    // TODO: URLのバリデーション
+    client.emit('youtube_add_movie', url);
   }
 
   /**

@@ -2,15 +2,15 @@ import { Room } from './Room';
 
 /** ルーム情報を管理するクラス */
 export class RoomController {
-  rooms: { [key: string]: Room };
+  private rooms: { [key: string]: Room };
 
   constructor() {
     this.rooms = {};
   }
 
   /** ルーム作成 */
-  createRoom(room_id: string) {
-    const room: Room = new Room(room_id);
+  createRoom(room_id: string, user_id: string) {
+    const room: Room = new Room(room_id, user_id);
     this.rooms[room_id] = room;
     console.log('create_room:', room_id);
   }
@@ -50,6 +50,8 @@ export class RoomController {
     // 空のルームを削除
     if (room.userCount === 0) {
       this.deleteRoom(room_id);
+    } else {
+      console.log(`changed roomMaster from ${user_id} to ${room.roomMaster}`);
     }
   }
 
@@ -69,5 +71,9 @@ export class RoomController {
    */
   exists(room_id: string): boolean {
     return !!this.rooms[room_id];
+  }
+
+  get(room_id: string): Room | undefined {
+    return this.rooms[room_id];
   }
 }
