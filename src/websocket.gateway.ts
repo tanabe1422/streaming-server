@@ -4,6 +4,7 @@ import { Server, Socket } from 'socket.io';
 import { RoomController } from './room/RoomController';
 import { UserController } from './room/UserController';
 import { User } from './room/User';
+import youtube from './youtube/getYouTubeId'
 
 @WebSocketGateway()
 export class WebsocketGateway {
@@ -182,8 +183,11 @@ export class WebsocketGateway {
 
   @SubscribeMessage('youtube_add_movie')
   youtubeAddMovieHandler(client: Socket, url: string) {
-    // TODO: URLのバリデーション
-    client.emit('youtube_add_movie', url);
+    // URLのバリデーション
+    const movie_id: string | null= youtube.getYouTubeId(url)
+
+    console.log(movie_id)
+    if(movie_id) this.server.emit('youtube_add_movie', movie_id);
   }
 
   /**
