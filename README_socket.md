@@ -1,0 +1,89 @@
+Socket.io
+===
+
+
+
+
+# emit
+
+## create_room
+
+ルーム作成
+他のルームに参加していない場合のみ作成出来ます。
+
+``` typescript
+emit( 'create_room', callback )
+```
+
+
+
+### callback(obj)
+
+| name     | type     | callback |
+| -------- | -------- | -------- |
+| obj      | object   | ```{ result, room_id }``` |
+| result   | boolean  | ルーム作成の成否 |
+| room_id  | string   | 作成したルームのid |
+
+<br />
+<br />
+
+## join_room
+
+指定したルームIDのルームに参加
+
+```typescript
+emit( 'join_room', room_id, callback )
+```
+### params
+
+| name     | type     | description |
+| -------- | -------- | -------- |
+| room_id  | string   | 参加したいルームのID |
+
+<br />
+
+### callback(result)
+
+| name     | type     | description |
+| -------- | -------- | -------- |
+| result   | boolean  | 入室の成否 |
+
+<br /><br />
+## send_message
+
+ルームにメッセージ送信
+
+
+```typescript
+emit( 'send_message', msg )
+```
+
+### params
+
+| name | type     | description |
+| ---- | -------- | - |
+| msg  | string   | 送信するメッセージ | 
+
+<br /><br />
+
+# socket.on
+
+## new_message
+
+メッセージ取得
+
+```typescript
+socket.on('new_message', fn(obj))
+```
+
+### params
+
+
+| name | type | 説明 |
+| -------- | -------- | -------- |
+| obj     | object     | ```{ user_id, user_name?, msg }```     |
+| user_id | string | ユーザID |
+| user_name | string? | ユーザ名 |
+| msg | string | メッセージ |
+
