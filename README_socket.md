@@ -1,9 +1,6 @@
 Socket.io
 ===
 
-
-
-
 # emit
 
 ## create_room
@@ -12,14 +9,19 @@ Socket.io
 他のルームに参加していない場合のみ作成出来ます。
 
 ``` typescript
-emit( 'create_room', callback )
+emit( 'create_room', user_name ,callback )
 ```
 
+### params
+
+| name      | type   | description |
+| --------- | ----   | ----------- |
+| user_name | string | 新規ユーザ名 |
 
 
 ### callback(obj)
 
-| name     | type     | callback |
+| name     | type     | description |
 | -------- | -------- | -------- |
 | obj      | object   | ```{ result, room_id }``` |
 | result   | boolean  | ルーム作成の成否 |
