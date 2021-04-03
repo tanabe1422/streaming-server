@@ -50,6 +50,7 @@ emit( 'join_room', room_id, callback )
 | result   | boolean  | 入室の成否 |
 
 <br /><br />
+
 ## send_message
 
 ルームにメッセージ送信
@@ -66,6 +67,34 @@ emit( 'send_message', msg )
 | msg  | string   | 送信するメッセージ | 
 
 <br /><br />
+
+
+## set_name
+
+ユーザ名を設定する。重複OK
+
+```typescript
+socket.emit('set_name', user_name, callback)
+```
+
+### params
+
+| name | type | description |
+|-|-|-|
+| user_name | string | ユーザ名 |
+
+<br/>
+
+### callback
+
+```typescript
+callback(result)
+```
+| name | type | description |
+|-|-|-|
+| result | boolean | 名前設定の成否 |
+
+<br/><br/>
 
 # socket.on
 
