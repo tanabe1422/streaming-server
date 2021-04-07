@@ -18,11 +18,22 @@ export class User {
 
   /** ユーザ名 */
   set name(name: string) {
-    this._name = name;
+    this._name = User.replaceUserName(name);
   }
 
   /** ユーザ名 */
   get name(): string {
     return this._name;
+    
+  }
+
+  /**
+   * ユーザ名を浄化します
+   * @param user_name 浄化前のuser_name
+   * @returns {string} 浄化されたuser_name
+   */
+  static replaceUserName(user_name: string) :string{
+    //TODO: 浄化処理
+    return user_name
   }
 }

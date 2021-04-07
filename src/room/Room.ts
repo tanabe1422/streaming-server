@@ -1,10 +1,11 @@
+import { PlayList } from './../playList/PlayList';
 import { User } from './User';
 
 /** ルーム */
 export class Room {
   private _id: string;
   private users: { [key: string]: User };
-  playlist: string[] = [];
+  playlist: PlayList = new PlayList([])
   roomMaster: string;
 
   constructor(room_id: string, user_id: string) {
