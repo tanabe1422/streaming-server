@@ -35,13 +35,15 @@ emit( 'create_room', user_name ,callback )
 指定したルームIDのルームに参加
 
 ```typescript
-emit( 'join_room', room_id, callback )
+emit( 'join_room', obj, callback )
 ```
 ### params
 
 | name     | type     | description |
 | -------- | -------- | -------- |
+| obj      | object   |          |
 | room_id  | string   | 参加したいルームのID |
+| uesr_name| string   | 設定するユーザ名 |
 
 <br />
 
