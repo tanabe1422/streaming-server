@@ -4,7 +4,7 @@ import { Server, Socket } from 'socket.io';
 import { RoomController } from './room/RoomController';
 import { UserController } from './room/UserController';
 import { User } from './room/User';
-import youtube from './youtube/getYouTubeId'
+import youtube, { getYouTubeId } from './youtube/getYouTubeId';
 import { Room } from './room/Room';
 
 @WebSocketGateway()
@@ -107,37 +107,36 @@ export class WebsocketGateway {
    * @returns {boolean} 入室の成否
    */
   @SubscribeMessage('join_room')
-  joinRoomHandler(client: Socket, {room_id, user_name}:{room_id?: string, user_name?:string}): boolean {
+  joinRoomHandler(client: Socket, { room_id, user_name }: { room_id?: string; user_name?: string }): boolean {
     // データのチェック 不足している場合return
-    if(!room_id || !user_name) {
-      console.log("join_failed: データ不足") 
-      return false
+    if (!room_id || !user_name) {
+      console.log('join_failed: データ不足');
+      return false;
     }
     // 参加不可の場合return
     if (this.getRoomCount(client) > 1) {
-      console.log("join_failed: 既にルームに参加済み")
+      console.log('join_failed: 既にルームに参加済み');
       false;
-
-    } 
+    }
 
     // ルームが存在しない場合return
-    const room: Room | undefined = this.rooms.get(room_id)
+    const room: Room | undefined = this.rooms.get(room_id);
     if (room === undefined) {
-      console.log("join_failed: 不明なルーム")
+      console.log('join_failed: 不明なルーム');
       return false;
     }
 
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
     if (user === undefined) {
-      console.log("join_failed: 不明なユーザ")
+      console.log('join_failed: 不明なユーザ');
       return false;
     }
 
     // ---- 正常な場合の処理 ---
 
     // 名前のセット
-    user.name = user_name
+    user.name = user_name;
 
     // 入室処理
     this.rooms.join(room_id, user); // データ側
@@ -145,18 +144,17 @@ export class WebsocketGateway {
 
     // ルームマスターにplayingDataをリクエスト
 
-    this.requestPlayingData(room.roomMaster, user.id)
-    
+    this.requestPlayingData(room.roomMaster, user.id);
+
     return true;
   }
 
   @SubscribeMessage('check_room')
-  checkRoomHandler(client:Socket, room_id:string):boolean {
-    if(!room_id) return false
+  checkRoomHandler(client: Socket, room_id: string): boolean {
+    if (!room_id) return false;
 
-    return this.rooms.exists(room_id)
+    return this.rooms.exists(room_id);
   }
-
 
   /**
    * ユーザ名設定処理
@@ -221,61 +219,105 @@ export class WebsocketGateway {
   @SubscribeMessage('youtube_add_movie')
   youtubeAddMovieHandler(client: Socket, url: string) {
     // URLのバリデーション
-    const movie_id: string | null= youtube.getYouTubeId(url)
+    const movie_id: string | null = youtube.getYouTubeId(url);
 
-    console.log(movie_id)
-    if(movie_id) this.server.emit('youtube_add_movie', movie_id);
+    console.log(movie_id);
+    if (movie_id) this.server.emit('youtube_add_movie', movie_id);
   }
 
   /**
    * シーク時処理
-   * @param client {Socket} 接続者情報 
+   * @param client {Socket} 接続者情報
    * @param time {number} シークした場所
    */
   @SubscribeMessage('youtube_seek')
   youtubeSeekHandler(client: Socket, time: number) {
-    if(time) client.broadcast.emit('youtube_seek', time)
+    if (time) client.broadcast.emit('youtube_seek', time);
   }
 
   /** 入室時の再生データ同期 */
   @SubscribeMessage('send_playing_data')
-  sendPlayingDataHandler(client:Socket, payload?: {socket_id: string, playingData: PlayingData}) {
-    if(!payload) {
-      console.log("send_playing_data: データが不足しています。")
-      return
+  sendPlayingDataHandler(client: Socket, payload?: { socket_id: string; playingData: PlayingData }) {
+    if (!payload) {
+      console.log('send_playing_data: データが不足しています。');
+      return;
     }
 
-    console.log("send_palying_data:")
-    console.log(payload)
-    this.server.to(payload.socket_id).emit("new_playing_data", payload.playingData)
-
+    console.log('send_palying_data:');
+    console.log(payload);
+    this.server.to(payload.socket_id).emit('new_playing_data', payload.playingData);
   }
 
-  // @SubscribeMessage('add_queue')
-  // addQueueHandler(client: Socket, payload?: {movie_id: string, index?: number}) {
-  //   const user_id = client.id
-  //   this.rooms.
-  // }
+  /**
+   * 再生情報を同期する処理
+   * @param client Socket接続者情報
+   * @returns void
+   */
+  @SubscribeMessage('youtube_sync')
+  youtubeSyncHandler(client: Socket) {
+    const room_id = this.getRoomId(client);
 
+    if (room_id === null) {
+      console.log('youtube_sync: ルームに未入室');
+      return;
+    }
+
+    const room = this.rooms.get(room_id);
+
+    if (room === undefined) {
+      console.log('youtube_sync: ルームが存在しない');
+      return;
+    }
+
+    if (room.roomMaster === client.id) {
+      // ルームマスターの場合
+    } else {
+      // それ以外の場合
+      this.requestPlayingData(room.roomMaster, client.id);
+    }
+  }
+
+  @SubscribeMessage('add_queue')
+  addQueueHandler(client: Socket, payload?: { movie_id: string; index?: number }) {
+    // データチェック
+    if (payload === undefined) {
+      console.log('add_queue: データ不足');
+      return;
+    }
+
+    // ルームの取得
+    const room_id = this.getRoomId(client) || '';
+    const room = this.rooms.get(room_id);
+
+    if (room === undefined) {
+      console.log('add_queue: 部屋が存在しない');
+      return;
+    }
+
+    const id = getYouTubeId(payload.movie_id);
+    this.server.to(room.id).emit('new_movie', { movie_id: id });
+
+    // 新機能予定
+    // room.playlist.add(payload.movie_id, payload.index)
+  }
 
   /**
    * ルームマスターにplayingDataをリクエスト
-   * @param room_master_id 
-   * @param participant_id 
+   * @param room_master_id
+   * @param participant_id
    */
-  requestPlayingData(room_master_id: string, participant_id:string) {
-    console.log("request_playing_data: to", room_master_id )
-    this.server.to(room_master_id).emit('request_playing_data', participant_id)
+  requestPlayingData(room_master_id: string, participant_id: string) {
+    console.log('request_playing_data: to', room_master_id);
+    this.server.to(room_master_id).emit('request_playing_data', participant_id);
   }
-
 
   /**
    * queueの情報をルーム全体に送信
    * @param room_id {string} ルームID
    * @param queue {string[]} queueの情報
    */
-  sendNewQueue(room_id: string, queue: string[] ){
-    this.server.to(room_id).emit('new_queue', { queue })
+  sendNewQueue(room_id: string, queue: string[]) {
+    this.server.to(room_id).emit('new_queue', { queue });
   }
 
   /**
@@ -287,18 +329,17 @@ export class WebsocketGateway {
     return Object.keys(client.rooms).length;
   }
 
-  getRoomId(client: Socket) :string | null {
-    if(this.getRoomCount(client) <= 1) return null
+  getRoomId(client: Socket): string | null {
+    if (this.getRoomCount(client) <= 1) return null;
 
-    let id: string | null = null
+    let id: string | null = null;
     Object.keys(client.rooms).forEach((room_id) => {
       if (room_id !== client.id) {
-        id = room_id
+        id = room_id;
       }
     });
 
-
-    return id
+    return id;
   }
 }
 
@@ -317,12 +358,11 @@ export type NewMsgRes = {
   msg: string;
 };
 
-
 export type PlayingData = {
   /** 動画ID */
-  movie_id?: string
+  movie_id?: string;
   /** 再生時間 */
-  time: number
+  time: number;
   /** 再生中かどうか */
-  isPlaying: boolean
-}
+  isPlaying: boolean;
+};
