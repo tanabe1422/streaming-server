@@ -121,6 +121,14 @@ export class WebsocketGateway {
     return true;
   }
 
+  @SubscribeMessage('check_room')
+  checkRoomHandler(client:Socket, room_id:string):boolean {
+    if(!room_id) return false
+
+    return this.rooms.exists(room_id)
+  }
+
+
   /**
    * ユーザ名設定処理
    * @param client websocket接続情報
@@ -190,10 +198,14 @@ export class WebsocketGateway {
     if(movie_id) this.server.emit('youtube_add_movie', movie_id);
   }
 
+  /**
+   * シーク時処理
+   * @param client {Socket} 接続者情報 
+   * @param time {number} シークした場所
+   */
   @SubscribeMessage('youtube_seek')
   youtubeSeekHandler(client: Socket, time: number) {
     if(time) client.broadcast.emit('youtube_seek', time)
-
   }
 
 
