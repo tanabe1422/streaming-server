@@ -109,18 +109,30 @@ export class WebsocketGateway {
   @SubscribeMessage('join_room')
   joinRoomHandler(client: Socket, {room_id, user_name}:{room_id?: string, user_name?:string}): boolean {
     // データのチェック 不足している場合return
-    if(!room_id || !user_name) return false
-    
+    if(!room_id || !user_name) {
+      console.log("join_failed: データ不足") 
+      return false
+    }
     // 参加不可の場合return
-    if (this.getRoomCount(client) > 1) return false;
+    if (this.getRoomCount(client) > 1) {
+      console.log("join_failed: 既にルームに参加済み")
+      false;
+
+    } 
 
     // ルームが存在しない場合return
     const room: Room | undefined = this.rooms.get(room_id)
-    if (room === undefined) return false;
+    if (room === undefined) {
+      console.log("join_failed: 不明なルーム")
+      return false;
+    }
 
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
-    if (user === undefined) return false;
+    if (user === undefined) {
+      console.log("join_failed: 不明なユーザ")
+      return false;
+    }
 
     // ---- 正常な場合の処理 ---
 
@@ -132,9 +144,9 @@ export class WebsocketGateway {
     client.join(room_id); // WebSocket側
 
     // ルームマスターにplayingDataをリクエスト
+    console.log("requestPlayingData: to", room.roomMaster)
     this.requestPlayingData(room.roomMaster, user.id)
     
-
     return true;
   }
 
@@ -234,6 +246,12 @@ export class WebsocketGateway {
 
   }
 
+  // @SubscribeMessage('add_queue')
+  // addQueueHandler(client: Socket, payload?: {movie_id: string, index?: number}) {
+  //   const user_id = client.id
+  //   this.rooms.
+  // }
+
 
   /**
    * ルームマスターにplayingDataをリクエスト
@@ -246,12 +264,35 @@ export class WebsocketGateway {
 
 
   /**
+   * queueの情報をルーム全体に送信
+   * @param room_id {string} ルームID
+   * @param queue {string[]} queueの情報
+   */
+  sendNewQueue(room_id: string, queue: string[] ){
+    this.server.to(room_id).emit('new_queue', { queue })
+  }
+
+  /**
    * 参加ルーム数の取得
    * @param client {Socket} websocket接続データ
    * @returns {number} 参加ルーム数
    */
   getRoomCount(client: Socket): number {
     return Object.keys(client.rooms).length;
+  }
+
+  getRoomId(client: Socket) :string | null {
+    if(this.getRoomCount(client) <= 1) return null
+
+    let id: string | null = null
+    Object.keys(client.rooms).forEach((room_id) => {
+      if (room_id !== client.id) {
+        id = room_id
+      }
+    });
+
+
+    return id
   }
 }
 

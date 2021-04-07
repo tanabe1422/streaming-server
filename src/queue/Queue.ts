@@ -1,5 +1,5 @@
 // export class PlayList implements IterableIterator<string> {
-  export class PlayList {
+  export class Queue {
  
   constructor(private _data: string[]){
     

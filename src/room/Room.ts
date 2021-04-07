@@ -1,11 +1,11 @@
-import { PlayList } from './../playList/PlayList';
+import { Queue } from '../queue/Queue';
 import { User } from './User';
 
 /** ルーム */
 export class Room {
   private _id: string;
   private users: { [key: string]: User };
-  playlist: PlayList = new PlayList([])
+  playlist: Queue = new Queue([])
   roomMaster: string;
 
   constructor(room_id: string, user_id: string) {
@@ -23,7 +23,6 @@ export class Room {
    * @param user_id {string} ユーザID
    */
   addUser(user: User) {
-
     this.users[user.id] = user;
   }
 
