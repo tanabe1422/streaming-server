@@ -55,6 +55,7 @@ export class WebsocketGateway {
   /**
    * ルーム作成処理
    * @param client {Socket} 接続者の情報
+   * @param user_name {string} ユーザ名
    * @returns {Object}
    * @returns {boolean} result 作成の成否
    * @returns {string} room_id ルームID
@@ -88,7 +89,7 @@ export class WebsocketGateway {
       this.rooms.createRoom(room_id, client.id);
 
       // 入室処理
-      this.rooms.join(room_id, client.id); // データ側
+      this.rooms.join(room_id, user); // データ側
       client.join(room_id); // websocket側
 
       return { result: true, room_id };
@@ -105,18 +106,28 @@ export class WebsocketGateway {
    * @returns {boolean} 入室の成否
    */
   @SubscribeMessage('join_room')
-  joinRoomHandler(client: Socket, room_id: string): boolean {
+  joinRoomHandler(client: Socket, {room_id, user_name}:{room_id?: string, user_name?:string}): boolean {
+    // データのチェック 不足している場合return
+    if(!room_id || !user_name) return false
+    
     // 参加不可の場合return
     if (this.getRoomCount(client) > 1) return false;
 
     // ルームが存在しない場合return
     if (this.rooms.exists(room_id) === false) return false;
 
-    // データ側の入室処理
-    this.rooms.join(room_id, client.id);
+    // ユーザ情報取得 存在しない場合はreturn
+    const user: User | undefined = this.users.getUser(client.id);
+    if (user === undefined) return false;
 
-    // websocket側の入室処理
-    client.join(room_id);
+    // ---- 正常な場合の処理 ---
+
+    // 名前のセット
+    user.name = user_name
+
+    // 入室処理
+    this.rooms.join(room_id, user); // データ側
+    client.join(room_id); // WebSocket側
 
     return true;
   }

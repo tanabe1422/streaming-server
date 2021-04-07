@@ -10,9 +10,10 @@ export class User {
    * コンストラクタ
    * @param user_id {string} ユーザID
    */
-  constructor(user_id: string) {
+  constructor(user_id: string, user_name?: string) {
     this.id = user_id;
     this._name = `Guest`;
+    if(user_name) this._name = user_name
   }
 
   /** ユーザ名 */

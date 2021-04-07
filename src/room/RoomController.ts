@@ -1,4 +1,5 @@
 import { Room } from './Room';
+import { User } from './User';
 
 /** ルーム情報を管理するクラス */
 export class RoomController {
@@ -30,9 +31,9 @@ export class RoomController {
    * @param room_id {string} ルームID
    * @param user_id {string} ユーザID
    */
-  join(room_id: string, user_id: string) {
-    this.rooms[room_id].addUser(user_id);
-    console.log('join:', user_id, 'enters', room_id);
+  join(room_id: string, user: User) {
+    this.rooms[room_id].addUser(user);
+    console.log('join:', user.id, 'enters', room_id);
   }
 
   /**

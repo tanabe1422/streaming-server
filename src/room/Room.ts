@@ -21,9 +21,9 @@ export class Room {
    * ルームにユーザを追加する
    * @param user_id {string} ユーザID
    */
-  addUser(user_id: string) {
-    const user: User = new User(user_id);
-    this.users[user_id] = user;
+  addUser(user: User) {
+
+    this.users[user.id] = user;
   }
 
   /**

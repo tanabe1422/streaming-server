@@ -51,6 +51,31 @@ emit( 'join_room', room_id, callback )
 | -------- | -------- | -------- |
 | result   | boolean  | 入室の成否 |
 
+<br />
+<br />
+
+## check_room
+
+指定したルームIDのルームが存在するかどうか
+
+```typescript
+emit( 'check_room', room_id, callback )
+```
+### params
+
+| name     | type     | description |
+| -------- | -------- | -------- |
+| room_id  | string   | 参加したいルームのID |
+
+<br />
+
+### callback(result)
+
+| name     | type     | description |
+| -------- | -------- | -------- |
+| result   | boolean  | ルームの有無 |
+
+
 <br /><br />
 
 ## send_message
