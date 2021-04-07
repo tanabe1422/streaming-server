@@ -5,6 +5,7 @@ import { RoomController } from './room/RoomController';
 import { UserController } from './room/UserController';
 import { User } from './room/User';
 import youtube from './youtube/getYouTubeId'
+import { Room } from './room/Room';
 
 @WebSocketGateway()
 export class WebsocketGateway {
@@ -114,7 +115,8 @@ export class WebsocketGateway {
     if (this.getRoomCount(client) > 1) return false;
 
     // ルームが存在しない場合return
-    if (this.rooms.exists(room_id) === false) return false;
+    const room: Room | undefined = this.rooms.get(room_id)
+    if (room === undefined) return false;
 
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
@@ -128,6 +130,10 @@ export class WebsocketGateway {
     // 入室処理
     this.rooms.join(room_id, user); // データ側
     client.join(room_id); // WebSocket側
+
+    // ルームマスターにplayingDataをリクエスト
+    this.requestPlayingData(room.roomMaster, user.id)
+    
 
     return true;
   }
@@ -219,6 +225,25 @@ export class WebsocketGateway {
     if(time) client.broadcast.emit('youtube_seek', time)
   }
 
+  /** 入室時の再生データ同期 */
+  @SubscribeMessage('send_playing_data')
+  sendPlayingDataHandler(client:Socket, payload?: {socket_id: string, playingData: PlayingData}) {
+    if(!payload) return
+
+    this.server.to(payload.socket_id).emit("new_playing_data", payload.playingData)
+
+  }
+
+
+  /**
+   * ルームマスターにplayingDataをリクエスト
+   * @param room_master_id 
+   * @param participant_id 
+   */
+  requestPlayingData(room_master_id: string, participant_id:string) {
+    this.server.to(room_master_id).emit('request_playing_data', participant_id)
+  }
+
 
   /**
    * 参加ルーム数の取得
@@ -244,3 +269,13 @@ export type NewMsgRes = {
   /** メッセージ */
   msg: string;
 };
+
+
+export type PlayingData = {
+  /** 動画ID */
+  movie_id?: string
+  /** 再生時間 */
+  time: number
+  /** 再生中かどうか */
+  isPlaying: boolean
+}
