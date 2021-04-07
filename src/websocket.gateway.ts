@@ -190,6 +190,13 @@ export class WebsocketGateway {
     if(movie_id) this.server.emit('youtube_add_movie', movie_id);
   }
 
+  @SubscribeMessage('youtube_seek')
+  youtubeSeekHandler(client: Socket, time: number) {
+    if(time) client.broadcast.emit('youtube_seek', time)
+
+  }
+
+
   /**
    * 参加ルーム数の取得
    * @param client {Socket} websocket接続データ
