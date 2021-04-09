@@ -142,10 +142,6 @@ export class WebsocketGateway {
     this.rooms.join(room_id, user); // データ側
     client.join(room_id); // WebSocket側
 
-    // ルームマスターにplayingDataをリクエスト
-
-    this.requestPlayingData(room.roomMaster, user.id);
-
     return true;
   }
 
