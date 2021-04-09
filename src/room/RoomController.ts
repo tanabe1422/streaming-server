@@ -57,12 +57,15 @@ export class RoomController {
   }
 
   /** 全てのルームからユーザを退室 */
-  leaveAll(user_id: string) {
+  leaveAll(user_id: string): string[] {
+    let rooms: string[] = [];
     Object.keys(this.rooms).forEach((room_id) => {
       if (this.rooms[room_id].userExists(user_id)) {
         this.leave(room_id, user_id);
+        rooms.push(room_id);
       }
     });
+    return rooms;
   }
 
   /**

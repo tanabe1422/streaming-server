@@ -41,8 +41,16 @@ export class WebsocketGateway {
     // 全てのルームのデータ
     // console.log(client.adapter.rooms);
 
+    // 退室するユーザの情報を取得
+    const user = this.users.getUser(client.id);
+
     // データ側の退室処理
-    this.rooms.leaveAll(client.id);
+    const room_list: string[] = this.rooms.leaveAll(client.id);
+
+    // 入室していたルームに退室通知
+    for (let room_id in room_list) {
+      this.server.to(room_id).emit('user_left', { user: { id: user?.id, name: user?.name } });
+    }
 
     // ユーザデータ削除
     this.users.remove(client.id);
@@ -93,6 +101,9 @@ export class WebsocketGateway {
       this.rooms.join(room_id, user); // データ側
       client.join(room_id); // websocket側
 
+      // 入室情報を配信
+      this.server.to(room_id).emit('user_joined', { user: { name: user.name, id: user.id } });
+
       return { result: true, room_id };
     } else {
       // 入室済
@@ -141,6 +152,9 @@ export class WebsocketGateway {
     // 入室処理
     this.rooms.join(room_id, user); // データ側
     client.join(room_id); // WebSocket側
+
+    // 入室情報を配信
+    this.server.to(room_id).emit('user_joined', { user: { id: user.id, name: user.name } });
 
     return true;
   }
