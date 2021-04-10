@@ -48,15 +48,13 @@ export class WebsocketGateway {
     const room_list: string[] = this.rooms.leaveAll(client.id);
 
     // 入室していたルームに退室通知
-    for (let room_id in room_list) {
+    for (let room_id of room_list) {
+      console.log(`emit: user_left from ${room_id}`);
       this.server.to(room_id).emit('user_left', { user: { id: user?.id, name: user?.name } });
     }
 
     // ユーザデータ削除
     this.users.remove(client.id);
-
-    // websocket側の退室処理は自動で行われるため、必要なし
-    // client.leaveAll();
 
     console.log(`dissconnect: ${client.id}`);
   }
@@ -91,18 +89,12 @@ export class WebsocketGateway {
     if (room_count <= 1) {
       // 未入室
 
-      /** ルームID */
+      //　ルーム生成
       const room_id: string = uuid.v4();
-
-      // ルーム生成
       this.rooms.createRoom(room_id, client.id);
 
-      // 入室処理
-      this.rooms.join(room_id, user); // データ側
-      client.join(room_id); // websocket側
-
-      // 入室情報を配信
-      this.server.to(room_id).emit('user_joined', { user: { name: user.name, id: user.id } });
+      // 入室時処理
+      this.joinRoom(client, room_id, user);
 
       return { result: true, room_id };
     } else {
@@ -118,9 +110,13 @@ export class WebsocketGateway {
    * @returns {boolean} 入室の成否
    */
   @SubscribeMessage('join_room')
-  joinRoomHandler(client: Socket, { room_id, user_name }: { room_id?: string; user_name?: string }): boolean {
+  joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): boolean {
     // データのチェック 不足している場合return
-    if (!room_id || !user_name) {
+    console.log('join_room: payload');
+    console.log(payload);
+
+    if (!payload) return false;
+    if (!payload.room_id || !payload.user_name) {
       console.log('join_failed: データ不足');
       return false;
     }
@@ -131,7 +127,7 @@ export class WebsocketGateway {
     }
 
     // ルームが存在しない場合return
-    const room: Room | undefined = this.rooms.get(room_id);
+    const room: Room | undefined = this.rooms.get(payload.room_id);
     if (room === undefined) {
       console.log('join_failed: 不明なルーム');
       return false;
@@ -147,16 +143,34 @@ export class WebsocketGateway {
     // ---- 正常な場合の処理 ---
 
     // 名前のセット
-    user.name = user_name;
+    user.name = payload.user_name;
 
     // 入室処理
-    this.rooms.join(room_id, user); // データ側
-    client.join(room_id); // WebSocket側
-
-    // 入室情報を配信
-    this.server.to(room_id).emit('user_joined', { user: { id: user.id, name: user.name } });
+    this.joinRoom(client, payload.room_id, user);
 
     return true;
+  }
+
+  /**
+   * 入室時の処理
+   * @param client
+   * @param room_id
+   * @param user
+   */
+  joinRoom(client: Socket, room_id: string, user: User) {
+    // 入室時の処理
+    this.rooms.join(room_id, user);
+    client.join(room_id);
+
+    // ルームに通知
+    console.log(user);
+    const user_data = {
+      id: user.id,
+      name: user.name
+    };
+    console.log(user_data);
+    console.log(`user_joind: ${user.id} ${user.name}`);
+    this.server.to(room_id).emit('user_joined', { user: user_data });
   }
 
   @SubscribeMessage('check_room')
