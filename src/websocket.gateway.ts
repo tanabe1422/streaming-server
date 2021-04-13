@@ -6,6 +6,7 @@ import { UserController } from './room/UserController';
 import { User } from './room/User';
 import youtube, { getYouTubeId } from './youtube/getYouTubeId';
 import { Room } from './room/Room';
+import { Logger } from '@nestjs/common';
 
 @WebSocketGateway()
 export class WebsocketGateway {
@@ -26,7 +27,7 @@ export class WebsocketGateway {
    * @param client {Socket} 接続者情報
    */
   handleConnection(client: Socket) {
-    console.log(`connect: ${client.id}`);
+    Logger.log(`${client.id}`, 'Connect');
     // ユーザ情報を追加
     this.users.add(client.id);
     // 恐らくcookie取り出せる。パースされてない。
@@ -49,7 +50,7 @@ export class WebsocketGateway {
 
     // 入室していたルームに退室通知
     for (let room_id of room_list) {
-      console.log(`emit: user_left from ${room_id}`);
+      Logger.log(`room: ${room_id} user: ${user?.id || 'undefined'}`, 'Left');
       this.server.to(room_id).emit('user_left', { user: { id: user?.id, name: user?.name } });
     }
 
