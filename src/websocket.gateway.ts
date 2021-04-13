@@ -223,21 +223,29 @@ export class WebsocketGateway {
     });
   }
 
+  /** 再生 */
   @SubscribeMessage('youtube_play')
   youtubePlayHandler(client: Socket, time: number) {
     if (!time) return;
 
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id) return;
+
     console.log('youtube_play', time);
-    client.broadcast.emit('youtube_play', time);
+    client.to(room_id).broadcast.emit('youtube_play', time);
   }
 
+  /** ポーズ */
   @SubscribeMessage('youtube_pause')
   youtubeStopHandler(client: Socket, time: number) {
     if (!time) return;
 
-    console.log('youtube_pause');
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id) return;
 
-    client.broadcast.emit('youtube_pause', time);
+    console.log('youtube_pause', time);
+
+    client.to(room_id).broadcast.emit('youtube_pause', time);
   }
 
   @SubscribeMessage('youtube_add_movie')
@@ -245,8 +253,11 @@ export class WebsocketGateway {
     // URLのバリデーション
     const movie_id: string | null = youtube.getYouTubeId(url);
 
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id) return;
+
     console.log(movie_id);
-    if (movie_id) this.server.emit('youtube_add_movie', movie_id);
+    if (movie_id) this.server.to(room_id).emit('youtube_add_movie', movie_id);
   }
 
   /**
@@ -353,6 +364,11 @@ export class WebsocketGateway {
     return Object.keys(client.rooms).length;
   }
 
+  /**
+   * clientが入室しているルームのIDを取得
+   * @param client
+   * @returns {string} ルームID
+   */
   getRoomId(client: Socket): string | null {
     if (this.getRoomCount(client) <= 1) return null;
 
