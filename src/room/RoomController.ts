@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Room } from './Room';
 import { User } from './User';
 
@@ -13,14 +14,14 @@ export class RoomController {
   createRoom(room_id: string, user_id: string) {
     const room: Room = new Room(room_id, user_id);
     this.rooms[room_id] = room;
-    console.log('create_room:', room_id);
+    Logger.log(room_id, 'create_room');
   }
 
   /** ルーム削除 */
   deleteRoom(room_id: string): boolean {
     if (this.rooms[room_id]) {
       delete this.rooms[room_id];
-      console.log('delete_room:', room_id);
+      Logger.log(room_id, 'delete_room');
     }
 
     return true;
@@ -33,7 +34,7 @@ export class RoomController {
    */
   join(room_id: string, user: User) {
     this.rooms[room_id].addUser(user);
-    console.log('join:', user.id, 'enters', room_id);
+    Logger.log(`user: ${user.id} room: ${room_id}`, 'Join');
   }
 
   /**
@@ -46,7 +47,7 @@ export class RoomController {
 
     // ルームからユーザを削除
     room.removeUser(user_id);
-    console.log('leave:', user_id, 'leaves', room_id);
+    Logger.log(`user: ${user_id} room: ${room_id}`, 'Leave');
 
     // 空のルームを削除
     if (room.userCount === 0) {

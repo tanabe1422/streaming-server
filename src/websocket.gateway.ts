@@ -57,7 +57,7 @@ export class WebsocketGateway {
     // ユーザデータ削除
     this.users.remove(client.id);
 
-    console.log(`dissconnect: ${client.id}`);
+    Logger.log(`${client.id}`, 'Dissconnect');
   }
 
   /**
@@ -113,24 +113,22 @@ export class WebsocketGateway {
   @SubscribeMessage('join_room')
   joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): boolean {
     // データのチェック 不足している場合return
-    console.log('join_room: payload');
-    console.log(payload);
 
     if (!payload) return false;
     if (!payload.room_id || !payload.user_name) {
-      console.log('join_failed: データ不足');
+      Logger.warn('データ不足', 'join_room');
       return false;
     }
     // 参加不可の場合return
     if (this.getRoomCount(client) > 1) {
-      console.log('join_failed: 既にルームに参加済み');
+      Logger.warn('参加済み', 'join_room');
       false;
     }
 
     // ルームが存在しない場合return
     const room: Room | undefined = this.rooms.get(payload.room_id);
     if (room === undefined) {
-      console.log('join_failed: 不明なルーム');
+      Logger.warn('存在しないルーム', 'join_room');
       return false;
     }
 
@@ -164,13 +162,11 @@ export class WebsocketGateway {
     client.join(room_id);
 
     // ルームに通知
-    console.log(user);
     const user_data = {
       id: user.id,
       name: user.name
     };
-    console.log(user_data);
-    console.log(`user_joind: ${user.id} ${user.name}`);
+    Logger.log(`${user.id} as ${user.name}`, 'Joined');
     this.server.to(room_id).emit('user_joined', { user: user_data });
   }
 
@@ -232,7 +228,7 @@ export class WebsocketGateway {
     const room_id: string | null = this.getRoomId(client);
     if (!room_id) return;
 
-    console.log('youtube_play', time);
+    Logger.log(`room: ${room_id} user: ${client.id} time: ${time}`, 'youtube_play');
     client.to(room_id).broadcast.emit('youtube_play', time);
   }
 
@@ -244,7 +240,7 @@ export class WebsocketGateway {
     const room_id: string | null = this.getRoomId(client);
     if (!room_id) return;
 
-    console.log('youtube_pause', time);
+    Logger.log(`room: ${room_id} time: ${time}`, 'youtube_pause');
 
     client.to(room_id).broadcast.emit('youtube_pause', time);
   }
@@ -257,7 +253,7 @@ export class WebsocketGateway {
     const room_id: string | null = this.getRoomId(client);
     if (!room_id) return;
 
-    console.log(movie_id);
+    Logger.log(`room: ${room_id} movie_id: ${movie_id}`, 'youtube_add_movie');
     if (movie_id) this.server.to(room_id).emit('youtube_add_movie', movie_id);
   }
 
@@ -268,19 +264,24 @@ export class WebsocketGateway {
    */
   @SubscribeMessage('youtube_seek')
   youtubeSeekHandler(client: Socket, time: number) {
-    if (time) client.broadcast.emit('youtube_seek', time);
+    if (!time) return;
+
+    const room_id = this.getRoomId(client);
+    if (!room_id) return;
+
+    Logger.log(`room: ${room_id} uesr: ${client.id} time:${time}`, 'youtube_seek');
+    client.to(room_id).broadcast.emit('youtube_seek', time);
   }
 
   /** 入室時の再生データ同期 */
   @SubscribeMessage('send_playing_data')
   sendPlayingDataHandler(client: Socket, payload?: { socket_id: string; playingData: PlayingData }) {
     if (!payload) {
-      console.log('send_playing_data: データが不足しています。');
+      Logger.warn('データ不足', 'send_playing_data');
       return;
     }
 
-    console.log('send_palying_data:');
-    console.log(payload);
+    Logger.log(`from: ${client.id}`, 'send_playing_data');
     this.server.to(payload.socket_id).emit('new_playing_data', payload.playingData);
   }
 
@@ -317,7 +318,7 @@ export class WebsocketGateway {
   addQueueHandler(client: Socket, payload?: { movie_id: string; index?: number }) {
     // データチェック
     if (payload === undefined) {
-      console.log('add_queue: データ不足');
+      Logger.log('no data', 'add_queue');
       return;
     }
 
@@ -326,7 +327,7 @@ export class WebsocketGateway {
     const room = this.rooms.get(room_id);
 
     if (room === undefined) {
-      console.log('add_queue: 部屋が存在しない');
+      Logger.log('ルームが存在しない', 'add_queue');
       return;
     }
 
@@ -343,7 +344,7 @@ export class WebsocketGateway {
    * @param participant_id
    */
   requestPlayingData(room_master_id: string, participant_id: string) {
-    console.log('request_playing_data: to', room_master_id);
+    Logger.log(`from ${participant_id} to ${room_master_id}`, 'request_playing_data');
     this.server.to(room_master_id).emit('request_playing_data', participant_id);
   }
 
