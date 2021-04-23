@@ -1,11 +1,11 @@
 import * as uuid from 'node-uuid';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { RoomController } from './room/RoomController';
-import { UserController } from './room/UserController';
-import { User } from './room/User';
-import youtube, { getYouTubeId } from './youtube/getYouTubeId';
-import { Room } from './room/Room';
+import { RoomController } from './../room/RoomController';
+import { UserController } from './../user/UserController';
+import { User } from './../user/User';
+import youtube, { getYouTubeId } from './../youtube/getYouTubeId';
+import { Room } from './../room/Room';
 import { Logger } from '@nestjs/common';
 
 @WebSocketGateway()
@@ -75,6 +75,10 @@ export class WebsocketGateway {
       return { result: false };
     }
 
+    if (user_name.length > 16) {
+      return { result: false };
+    }
+
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
     if (user === undefined) return { result: false };
@@ -113,16 +117,21 @@ export class WebsocketGateway {
   @SubscribeMessage('join_room')
   joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): boolean {
     // データのチェック 不足している場合return
-
     if (!payload) return false;
     if (!payload.room_id || !payload.user_name) {
       Logger.warn('データ不足', 'join_room');
       return false;
     }
-    // 参加不可の場合return
+
+    // 参加済みの場合return
     if (this.getRoomCount(client) > 1) {
       Logger.warn('参加済み', 'join_room');
       false;
+    }
+
+    // ユーザ名のチェック
+    if (payload.user_name.length > 16) {
+      return false;
     }
 
     // ルームが存在しない場合return

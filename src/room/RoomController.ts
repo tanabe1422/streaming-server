@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Room } from './Room';
-import { User } from './User';
+import { User } from '../user/User';
 
 /** ルーム情報を管理するクラス */
 export class RoomController {

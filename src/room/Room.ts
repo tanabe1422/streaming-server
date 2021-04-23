@@ -1,5 +1,5 @@
 import { Queue } from '../queue/Queue';
-import { User } from './User';
+import { User } from '../user/User';
 
 /** ルーム */
 export class Room {
