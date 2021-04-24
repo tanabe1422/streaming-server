@@ -47,6 +47,10 @@ export class Room {
     return Object.keys(this.users).length;
   }
 
+  get userList(): { name: string; id: string }[] {
+    return Object.keys(this.users).map((key) => this.users[key]);
+  }
+
   /**
    * ルームにユーザが存在するか
    * @param user_id {string} ユーザID
