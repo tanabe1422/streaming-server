@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { User } from 'src/user/User';
 import { Room } from 'src/room/Room';
+import { Server } from 'socket.io';
 
 @Injectable()
 export class WebsocketService {

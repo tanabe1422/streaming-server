@@ -1,3 +1,4 @@
+import { WebsocketService } from './websocket.service';
 import * as uuid from 'node-uuid';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
@@ -17,7 +18,7 @@ export class WebsocketGateway {
   /** ユーザ情報を扱う */
   users: UserController;
 
-  constructor() {
+  constructor(private readonly websocketService: WebsocketService) {
     this.rooms = new RoomController();
     this.users = new UserController();
   }
@@ -345,6 +346,30 @@ export class WebsocketGateway {
 
     // 新機能予定
     // room.playlist.add(payload.movie_id, payload.index)
+  }
+
+  /**
+   * 入室時にルームにいる人の情報を取得する
+   * @param client
+   * @returns
+   */
+  @SubscribeMessage('get_users')
+  getUsersHandler(client: Socket): { name: string; id: string }[] {
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id) return [];
+    return this.websocketService.getUsers(this.rooms.get(room_id));
+  }
+
+  @SubscribeMessage('post_chat')
+  postChatHandler(client: Socket, msg?: string) {
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id || !msg) return;
+    console.log('testtest', msg);
+    this.server.to(room_id).emit('new_chat', {
+      id: client.id,
+      name: this.users.getUser(client.id)?.name || 'undefined User',
+      msg: msg
+    });
   }
 
   /**
