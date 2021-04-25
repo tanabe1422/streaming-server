@@ -48,7 +48,9 @@ export class Room {
   }
 
   get userList(): { name: string; id: string }[] {
-    return Object.keys(this.users).map((key) => this.users[key]);
+    return Object.keys(this.users).map((key) => {
+      return { name: this.users[key].name, id: this.users[key].id };
+    });
   }
 
   /**

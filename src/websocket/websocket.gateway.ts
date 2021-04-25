@@ -102,7 +102,10 @@ export class WebsocketGateway {
       // 入室時処理
       this.joinRoom(client, room_id, user);
 
-      return { result: true, room_id };
+      // ユーザリスト取得
+      const userList = this.websocketService.getUsers(this.rooms.get(room_id));
+
+      return { result: true, room_id, userList };
     } else {
       // 入室済
       return { result: false };
@@ -116,12 +119,12 @@ export class WebsocketGateway {
    * @returns {boolean} 入室の成否
    */
   @SubscribeMessage('join_room')
-  joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): boolean {
+  joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): JoinRoomRes {
     // データのチェック 不足している場合return
-    if (!payload) return false;
+    if (!payload) return { result: false };
     if (!payload.room_id || !payload.user_name) {
       Logger.warn('データ不足', 'join_room');
-      return false;
+      return { result: false };
     }
 
     // 参加済みの場合return
@@ -132,21 +135,21 @@ export class WebsocketGateway {
 
     // ユーザ名のチェック
     if (payload.user_name.length > 16) {
-      return false;
+      return { result: false };
     }
 
     // ルームが存在しない場合return
     const room: Room | undefined = this.rooms.get(payload.room_id);
     if (room === undefined) {
       Logger.warn('存在しないルーム', 'join_room');
-      return false;
+      return { result: false };
     }
 
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
     if (user === undefined) {
       console.log('join_failed: 不明なユーザ');
-      return false;
+      return { result: false };
     }
 
     // ---- 正常な場合の処理 ---
@@ -157,7 +160,7 @@ export class WebsocketGateway {
     // 入室処理
     this.joinRoom(client, payload.room_id, user);
 
-    return true;
+    return { result: true, userList: this.websocketService.getUsers(room) };
   }
 
   /**
@@ -423,6 +426,12 @@ export class WebsocketGateway {
 export type CreateRoomRes = {
   result: boolean;
   room_id?: string;
+  userList?: { id: string; name: string }[];
+};
+
+export type JoinRoomRes = {
+  result: boolean;
+  userList?: { id: string; name: string }[];
 };
 
 export type NewMsgRes = {
