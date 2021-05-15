@@ -52,11 +52,11 @@ export class Queue {
     return this._data;
   }
 
-  static generateQueueItem(client: Socket, video_id: string, video_title: string): QueueItem {
+  static generateQueueItem(user_name: string, video_id: string, video_title: string): QueueItem {
     const thumbnail = `http://img.youtube.com/vi/${video_id}/mqdefault.jpg`;
 
     return {
-      requester: client.id,
+      requester: user_name,
       title: video_title,
       thumbnail,
       videoId: video_id

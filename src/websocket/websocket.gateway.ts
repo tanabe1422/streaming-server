@@ -364,6 +364,12 @@ export class WebsocketGateway {
       return;
     }
 
+    // ユーザの取得
+    const user: User | undefined = this.users.getUser(client.id);
+
+    // ユーザが存在しない場合はreturn
+    if (!user) return;
+
     // urlからvideoIdを取得
     const video_id = getYouTubeId(payload.video_url);
 
@@ -374,7 +380,7 @@ export class WebsocketGateway {
     const video_title = await this.youtube.getVideoTitle(video_id);
 
     // queueItemを生成
-    const queueItem = Queue.generateQueueItem(client, video_id, video_title);
+    const queueItem = Queue.generateQueueItem(user.name, video_id, video_title);
 
     // roomに追加
     room.playlist.add(queueItem);
