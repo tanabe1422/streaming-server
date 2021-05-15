@@ -389,15 +389,14 @@ export class WebsocketGateway {
     this.sendNewPlaylist(room.id, room.playlist.data);
   }
 
+  /** プレイリストを入れ替える */
   @SubscribeMessage('playlist_swap')
   playlistSwapHandler(client: Socket, payload: { index_1: number; index_2: number }) {
     // データチェック
     if (payload === undefined) {
-      Logger.log('no data', 'add_queue');
+      Logger.log('no data', 'playlist_swap');
       return;
     }
-
-    if (payload.index_1 < 0 && payload.index_2) return;
 
     // ルームの取得
     const room_id = this.getRoomId(client) || '';
@@ -408,6 +407,62 @@ export class WebsocketGateway {
       Logger.log('ルームが存在しない', 'add_queue');
       return;
     }
+
+    // 値のチェック
+    if (!Number.isInteger(payload.index_1)) return;
+    if (!Number.isInteger(payload.index_2)) return;
+
+    if (payload.index_1 < 0 || payload.index_1 >= room.playlist.data.length) return;
+    if (payload.index_2 < 0 || payload.index_2 >= room.playlist.data.length) return;
+
+    if (payload.index_1 == payload.index_2) return;
+
+    // プレイリストのチェック lengthが2未満ならreturn
+    if (room.playlist.data.length < 2) return;
+
+    // プレイリストの入れ替え
+    room.playlist.swap(payload.index_1, payload.index_2);
+
+    // 変更をルームに通知
+    this.sendNewPlaylist(room_id, room.playlist.data);
+  }
+
+  /** プレイリストから動画を削除 */
+  @SubscribeMessage('playlist_remove')
+  playlistRemoveHandler(client: Socket, payload: { index: number }) {
+    // payloadの検証
+    if (!payload) return;
+
+    // room取得
+    const room_id: string | null = this.getRoomId(client);
+    const room: Room | undefined = this.rooms.get(room_id || '');
+
+    // roomが存在しない場合はreturn
+    if (!room) return;
+
+    // indexの検証
+    // 有効な値でない場合はreturn
+    if (!Number.isInteger(payload.index)) return;
+
+    const playlistLength = room.playlist.data.length;
+
+    if (playlistLength === 0) return;
+
+    // 範囲外の場合はreturn
+    if (payload.index >= 0 && payload.index < playlistLength) {
+      // OK
+      room.playlist.remove(payload.index);
+    } else if (payload.index === -1) {
+      // -1の場合は全消去
+      for (let i = 0; i < playlistLength; i++) {
+        room.playlist.remove(0);
+      }
+    } else {
+      return;
+    }
+
+    // プレイリストの変更を通知
+    this.sendNewPlaylist(room.id, room.playlist.data);
   }
 
   @SubscribeMessage('next_video')
@@ -546,4 +601,6 @@ export type PlayingData = {
   time: number;
   /** 再生中かどうか */
   isPlaying: boolean;
+  /** プレイリスト情報 */
+  playlistItem: QueueItem;
 };

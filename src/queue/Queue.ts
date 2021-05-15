@@ -36,6 +36,18 @@ export class Queue {
     return this._data.pop();
   }
 
+  /** プレイリストを入れ替える */
+  swap(index_1: number, index_2: number) {
+    if (this._data.length < 2) return;
+    if (index_1 == index_2) return;
+
+    const item_1 = { ...this._data[index_1] };
+    const item_2 = { ...this._data[index_2] };
+
+    this._data[index_1] = item_2;
+    this._data[index_2] = item_1;
+  }
+
   /**
    * n番目のデータを削除
    * @param index
