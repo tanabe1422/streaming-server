@@ -184,8 +184,16 @@ export class WebsocketGateway {
       id: user.id,
       name: user.name
     };
+
     Logger.log(`${user.id} as ${user.name}`, 'Joined');
     this.server.to(room_id).emit('user_joined', { user: user_data });
+
+    // ルーム取得
+    const room: Room | undefined = this.rooms.get(room_id);
+    if (!room) return;
+
+    // プレイリストを送信
+    this.sendNewPlaylist(room_id, room.playlist.data);
   }
 
   @SubscribeMessage('check_room')
