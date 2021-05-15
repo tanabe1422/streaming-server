@@ -6,6 +6,7 @@ export class Room {
   private _id: string;
   private users: { [key: string]: User };
   playlist: Queue = new Queue([]);
+  /** ownerのid */
   roomMaster: string;
 
   constructor(room_id: string, user_id: string) {

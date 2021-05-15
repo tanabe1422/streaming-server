@@ -1,13 +1,18 @@
-// export class PlayList implements IterableIterator<string> {
-  export class Queue {
- 
-  constructor(private _data: string[]){
-    
-  }
+import { Client, Socket } from 'socket.io';
 
-  private insert(index: number, movie_id: string | string[]) {
-    this._data.splice(index, 0, ...movie_id)
-    
+// export class PlayList implements IterableIterator<string> {
+export interface QueueItem {
+  videoId: string;
+  thumbnail: string;
+  title: string;
+  requester: string;
+}
+
+export class Queue {
+  constructor(private _data: QueueItem[]) {}
+
+  private insert(index: number, queueItem: QueueItem) {
+    this._data.splice(index, 0, queueItem);
   }
 
   /**
@@ -15,11 +20,11 @@
    * @param movie_id youtubeの動画ID
    * @param index 挿入箇所を指定可能
    */
-  add(movie_id: string | string[], index?: number) {
-    if(index) {
-      this.insert(index, movie_id)
-    } else{
-      this._data.push(...movie_id)
+  add(queueItem: QueueItem, index?: number) {
+    if (index) {
+      this.insert(index, queueItem);
+    } else {
+      this._data.push(queueItem);
     }
   }
 
@@ -27,24 +32,35 @@
    * 先頭の動画IDを抜き出す
    * @returns {string|undefined} 先頭の動画ID
    */
-  pop():string | undefined {
-    return this._data.pop()
+  pop(): QueueItem | undefined {
+    return this._data.pop();
   }
 
   /**
    * n番目のデータを削除
-   * @param index 
+   * @param index
    */
   remove(index: number): void {
-    this._data.splice(index)
+    this._data.splice(index);
   }
 
   /**
    * プレイリストを配列で取得
    * @return {string[]} プレイリスト
    */
-  get data(): string[]{
-    return this._data
+  get data(): QueueItem[] {
+    return this._data;
+  }
+
+  static generateQueueItem(client: Socket, video_id: string, video_title: string): QueueItem {
+    const thumbnail = `http://img.youtube.com/vi/${video_id}/mqdefault.jpg`;
+
+    return {
+      requester: client.id,
+      title: video_title,
+      thumbnail,
+      videoId: video_id
+    };
   }
 
   // public next(): IteratorResult<string> {
@@ -64,5 +80,4 @@
   // [Symbol.iterator](): IterableIterator<string> {
   //   return this;
   // }
-  
 }

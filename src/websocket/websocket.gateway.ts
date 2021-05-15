@@ -1,3 +1,5 @@
+import { YouTube } from './../youtube/YouTube';
+import { Queue } from './../queue/Queue';
 import { WebsocketService } from './websocket.service';
 import * as uuid from 'node-uuid';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
@@ -8,6 +10,7 @@ import { User } from './../user/User';
 import youtube, { getYouTubeId } from './../youtube/getYouTubeId';
 import { Room } from './../room/Room';
 import { Logger } from '@nestjs/common';
+import { QueueItem } from '../queue/Queue';
 
 @WebSocketGateway()
 export class WebsocketGateway {
@@ -17,10 +20,12 @@ export class WebsocketGateway {
   rooms: RoomController;
   /** ユーザ情報を扱う */
   users: UserController;
+  youtube: YouTube;
 
   constructor(private readonly websocketService: WebsocketService) {
     this.rooms = new RoomController();
     this.users = new UserController();
+    this.youtube = new YouTube();
   }
 
   /**
@@ -327,8 +332,14 @@ export class WebsocketGateway {
     }
   }
 
-  @SubscribeMessage('add_queue')
-  addQueueHandler(client: Socket, payload?: { movie_id: string; index?: number }) {
+  /**
+   * プレイリストに動画を追加
+   * @param client {Socket} ユーザ情報
+   * @param payload
+   * @returns
+   */
+  @SubscribeMessage('playlist_add')
+  async addQueueHandler(client: Socket, payload?: { video_url: string; index?: number }) {
     // データチェック
     if (payload === undefined) {
       Logger.log('no data', 'add_queue');
@@ -339,16 +350,73 @@ export class WebsocketGateway {
     const room_id = this.getRoomId(client) || '';
     const room = this.rooms.get(room_id);
 
+    // ルームが存在しない場合はreturn
     if (room === undefined) {
       Logger.log('ルームが存在しない', 'add_queue');
       return;
     }
 
-    const id = getYouTubeId(payload.movie_id);
-    this.server.to(room.id).emit('new_movie', { movie_id: id });
+    // urlからvideoIdを取得
+    const video_id = getYouTubeId(payload.video_url);
 
-    // 新機能予定
-    // room.playlist.add(payload.movie_id, payload.index)
+    // videoIdが取得できなかった場合はreturn
+    if (!video_id) return;
+
+    // video_titleを取得
+    const video_title = await this.youtube.getVideoTitle(video_id);
+
+    // queueItemを生成
+    const queueItem = Queue.generateQueueItem(client, video_id, video_title);
+
+    // roomに追加
+    room.playlist.add(queueItem);
+
+    // 新しいplaylist情報を送信
+    this.sendNewPlaylist(room.id, room.playlist.data);
+  }
+
+  @SubscribeMessage('playlist_swap')
+  playlistSwapHandler(client: Socket, payload: { index_1: number; index_2: number }) {
+    // データチェック
+    if (payload === undefined) {
+      Logger.log('no data', 'add_queue');
+      return;
+    }
+
+    if (payload.index_1 < 0 && payload.index_2) return;
+
+    // ルームの取得
+    const room_id = this.getRoomId(client) || '';
+    const room = this.rooms.get(room_id);
+
+    // ルームが存在しない場合はreturn
+    if (room === undefined) {
+      Logger.log('ルームが存在しない', 'add_queue');
+      return;
+    }
+  }
+
+  @SubscribeMessage('next_video')
+  nextVideoHandler(client: Socket) {
+    // ルームの取得
+    const room_id = this.getRoomId(client) || '';
+    const room = this.rooms.get(room_id);
+
+    if (room === undefined) {
+      Logger.log('ルームが存在しない', 'add_queue');
+      return;
+    }
+
+    // ownerかどうかのチェック
+    if (room.roomMaster === client.id) {
+      // ownerの場合
+      const queueItem: QueueItem | undefined = room.playlist.pop();
+
+      if (!queueItem) return;
+
+      this.sendNewVideo(room.id, queueItem.videoId);
+      this.sendNewPlaylist(room.id, room.playlist.data);
+    }
   }
 
   /**
@@ -363,11 +431,20 @@ export class WebsocketGateway {
     return this.websocketService.getUsers(this.rooms.get(room_id));
   }
 
+  /**
+   * チャット受取時の処理
+   * @param client
+   * @param msg
+   * @returns
+   */
   @SubscribeMessage('post_chat')
   postChatHandler(client: Socket, msg?: string) {
+    // ルームIDを取得
     const room_id: string | null = this.getRoomId(client);
+
+    // TODO: データのチェック
     if (!room_id || !msg) return;
-    console.log('testtest', msg);
+
     this.server.to(room_id).emit('new_chat', {
       id: client.id,
       name: this.users.getUser(client.id)?.name || 'undefined User',
@@ -385,13 +462,18 @@ export class WebsocketGateway {
     this.server.to(room_master_id).emit('request_playing_data', participant_id);
   }
 
+  /** 次のvideoを再生 */
+  sendNewVideo(room_id: string, video_id: string) {
+    this.server.to(room_id).emit('youtube_add_movie', video_id);
+  }
+
   /**
-   * queueの情報をルーム全体に送信
+   * 新しいプレイリストの情報をルームに送信
    * @param room_id {string} ルームID
-   * @param queue {string[]} queueの情報
+   * @param playlist {QueueItem[]} プレイリスト
    */
-  sendNewQueue(room_id: string, queue: string[]) {
-    this.server.to(room_id).emit('new_queue', { queue });
+  sendNewPlaylist(room_id: string, playlist: QueueItem[]) {
+    this.server.to(room_id).emit('new_playlist', { playlist });
   }
 
   /**
