@@ -3,8 +3,16 @@ require('dotenv').config();
 
 export class YouTube {
   /** 動画IDから動画のタイトルを取得 */
+  private database: { id: string; title: string }[] = [];
+
   async getVideoTitle(video_id: string): Promise<string> {
     if (!process.env.YOUTUBE_KEY) return 'apiキーが無効';
+
+    const item = this.database.find((item) => item.id === video_id);
+
+    if (item) return item.title;
+
+    if (this.database.length > 1000) this.database.pop();
 
     const response: AxiosResponse<any> | undefined = await axios
       .get('https://www.googleapis.com/youtube/v3/videos', {
@@ -23,7 +31,11 @@ export class YouTube {
 
     if (!response) return 'タイトル取得失敗';
 
-    return response.data.items[0].snippet.title;
+    const title = response.data.items[0].snippet.title;
+
+    this.database.push({ id: video_id, title });
+
+    return title;
   }
 
   /**
