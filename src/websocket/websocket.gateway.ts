@@ -483,7 +483,7 @@ export class WebsocketGateway {
 
       if (!queueItem) return;
 
-      this.sendNewVideo(room.id, queueItem.videoId);
+      this.sendNewVideo(room.id, queueItem);
       this.sendNewPlaylist(room.id, room.playlist.data);
     }
   }
@@ -532,8 +532,8 @@ export class WebsocketGateway {
   }
 
   /** 次のvideoを再生 */
-  sendNewVideo(room_id: string, video_id: string) {
-    this.server.to(room_id).emit('youtube_add_movie', video_id);
+  sendNewVideo(room_id: string, videoData: QueueItem) {
+    this.server.to(room_id).emit('youtube_add_movie', { videoData: videoData });
   }
 
   /**
