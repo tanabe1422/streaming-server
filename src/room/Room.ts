@@ -6,6 +6,7 @@ export class Room {
   private _id: string;
   private users: { [key: string]: User };
   playlist: Queue = new Queue([]);
+  /** ownerのid */
   roomMaster: string;
 
   constructor(room_id: string, user_id: string) {
@@ -45,6 +46,12 @@ export class Room {
   /** ルーム人数 */
   get userCount(): number {
     return Object.keys(this.users).length;
+  }
+
+  get userList(): { name: string; id: string }[] {
+    return Object.keys(this.users).map((key) => {
+      return { name: this.users[key].name, id: this.users[key].id };
+    });
   }
 
   /**

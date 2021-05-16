@@ -1,3 +1,6 @@
+import { YouTube } from './../youtube/YouTube';
+import { Queue } from './../queue/Queue';
+import { WebsocketService } from './websocket.service';
 import * as uuid from 'node-uuid';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
@@ -7,6 +10,7 @@ import { User } from './../user/User';
 import youtube, { getYouTubeId } from './../youtube/getYouTubeId';
 import { Room } from './../room/Room';
 import { Logger } from '@nestjs/common';
+import { QueueItem } from '../queue/Queue';
 
 @WebSocketGateway()
 export class WebsocketGateway {
@@ -16,10 +20,12 @@ export class WebsocketGateway {
   rooms: RoomController;
   /** ユーザ情報を扱う */
   users: UserController;
+  youtube: YouTube;
 
-  constructor() {
+  constructor(private readonly websocketService: WebsocketService) {
     this.rooms = new RoomController();
     this.users = new UserController();
+    this.youtube = new YouTube();
   }
 
   /**
@@ -101,7 +107,10 @@ export class WebsocketGateway {
       // 入室時処理
       this.joinRoom(client, room_id, user);
 
-      return { result: true, room_id };
+      // ユーザリスト取得
+      const userList = this.websocketService.getUsers(this.rooms.get(room_id));
+
+      return { result: true, room_id, userList };
     } else {
       // 入室済
       return { result: false };
@@ -115,12 +124,12 @@ export class WebsocketGateway {
    * @returns {boolean} 入室の成否
    */
   @SubscribeMessage('join_room')
-  joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): boolean {
+  joinRoomHandler(client: Socket, payload: { room_id?: string; user_name?: string }): JoinRoomRes {
     // データのチェック 不足している場合return
-    if (!payload) return false;
+    if (!payload) return { result: false };
     if (!payload.room_id || !payload.user_name) {
       Logger.warn('データ不足', 'join_room');
-      return false;
+      return { result: false };
     }
 
     // 参加済みの場合return
@@ -131,21 +140,21 @@ export class WebsocketGateway {
 
     // ユーザ名のチェック
     if (payload.user_name.length > 16) {
-      return false;
+      return { result: false };
     }
 
     // ルームが存在しない場合return
     const room: Room | undefined = this.rooms.get(payload.room_id);
     if (room === undefined) {
       Logger.warn('存在しないルーム', 'join_room');
-      return false;
+      return { result: false };
     }
 
     // ユーザ情報取得 存在しない場合はreturn
     const user: User | undefined = this.users.getUser(client.id);
     if (user === undefined) {
       console.log('join_failed: 不明なユーザ');
-      return false;
+      return { result: false };
     }
 
     // ---- 正常な場合の処理 ---
@@ -156,7 +165,7 @@ export class WebsocketGateway {
     // 入室処理
     this.joinRoom(client, payload.room_id, user);
 
-    return true;
+    return { result: true, userList: this.websocketService.getUsers(room) };
   }
 
   /**
@@ -175,8 +184,16 @@ export class WebsocketGateway {
       id: user.id,
       name: user.name
     };
+
     Logger.log(`${user.id} as ${user.name}`, 'Joined');
     this.server.to(room_id).emit('user_joined', { user: user_data });
+
+    // ルーム取得
+    const room: Room | undefined = this.rooms.get(room_id);
+    if (!room) return;
+
+    // プレイリストを送信
+    this.sendNewPlaylist(room_id, room.playlist.data);
   }
 
   @SubscribeMessage('check_room')
@@ -323,8 +340,14 @@ export class WebsocketGateway {
     }
   }
 
-  @SubscribeMessage('add_queue')
-  addQueueHandler(client: Socket, payload?: { movie_id: string; index?: number }) {
+  /**
+   * プレイリストに動画を追加
+   * @param client {Socket} ユーザ情報
+   * @param payload
+   * @returns
+   */
+  @SubscribeMessage('playlist_add')
+  async addQueueHandler(client: Socket, payload?: { video_url: string; index?: number }) {
     // データチェック
     if (payload === undefined) {
       Logger.log('no data', 'add_queue');
@@ -335,16 +358,167 @@ export class WebsocketGateway {
     const room_id = this.getRoomId(client) || '';
     const room = this.rooms.get(room_id);
 
+    // ルームが存在しない場合はreturn
     if (room === undefined) {
       Logger.log('ルームが存在しない', 'add_queue');
       return;
     }
 
-    const id = getYouTubeId(payload.movie_id);
-    this.server.to(room.id).emit('new_movie', { movie_id: id });
+    // ユーザの取得
+    const user: User | undefined = this.users.getUser(client.id);
 
-    // 新機能予定
-    // room.playlist.add(payload.movie_id, payload.index)
+    // ユーザが存在しない場合はreturn
+    if (!user) return;
+
+    // urlからvideoIdを取得
+    const video_id = getYouTubeId(payload.video_url);
+
+    // videoIdが取得できなかった場合はreturn
+    if (!video_id) return;
+
+    // video_titleを取得
+    const video_title = await this.youtube.getVideoTitle(video_id);
+
+    // queueItemを生成
+    const queueItem = Queue.generateQueueItem(user.name, video_id, video_title);
+
+    // roomに追加
+    room.playlist.add(queueItem);
+
+    // 新しいplaylist情報を送信
+    this.sendNewPlaylist(room.id, room.playlist.data);
+  }
+
+  /** プレイリストを入れ替える */
+  @SubscribeMessage('playlist_swap')
+  playlistSwapHandler(client: Socket, payload: { index_1: number; index_2: number }) {
+    // データチェック
+    if (payload === undefined) {
+      Logger.log('no data', 'playlist_swap');
+      return;
+    }
+
+    // ルームの取得
+    const room_id = this.getRoomId(client) || '';
+    const room = this.rooms.get(room_id);
+
+    // ルームが存在しない場合はreturn
+    if (room === undefined) {
+      Logger.log('ルームが存在しない', 'add_queue');
+      return;
+    }
+
+    // 値のチェック
+    if (!Number.isInteger(payload.index_1)) return;
+    if (!Number.isInteger(payload.index_2)) return;
+
+    if (payload.index_1 < 0 || payload.index_1 >= room.playlist.data.length) return;
+    if (payload.index_2 < 0 || payload.index_2 >= room.playlist.data.length) return;
+
+    if (payload.index_1 == payload.index_2) return;
+
+    // プレイリストのチェック lengthが2未満ならreturn
+    if (room.playlist.data.length < 2) return;
+
+    // プレイリストの入れ替え
+    room.playlist.swap(payload.index_1, payload.index_2);
+
+    // 変更をルームに通知
+    this.sendNewPlaylist(room_id, room.playlist.data);
+  }
+
+  /** プレイリストから動画を削除 */
+  @SubscribeMessage('playlist_remove')
+  playlistRemoveHandler(client: Socket, payload: { index: number }) {
+    // payloadの検証
+    if (!payload) return;
+
+    // room取得
+    const room_id: string | null = this.getRoomId(client);
+    const room: Room | undefined = this.rooms.get(room_id || '');
+
+    // roomが存在しない場合はreturn
+    if (!room) return;
+
+    // indexの検証
+    // 有効な値でない場合はreturn
+    if (!Number.isInteger(payload.index)) return;
+
+    const playlistLength = room.playlist.data.length;
+
+    if (playlistLength === 0) return;
+
+    // 範囲外の場合はreturn
+    if (payload.index >= 0 && payload.index < playlistLength) {
+      // OK
+      room.playlist.remove(payload.index);
+    } else if (payload.index === -1) {
+      // -1の場合は全消去
+      for (let i = 0; i < playlistLength; i++) {
+        room.playlist.remove(0);
+      }
+    } else {
+      return;
+    }
+
+    // プレイリストの変更を通知
+    this.sendNewPlaylist(room.id, room.playlist.data);
+  }
+
+  @SubscribeMessage('next_video')
+  nextVideoHandler(client: Socket) {
+    // ルームの取得
+    const room_id = this.getRoomId(client) || '';
+    const room = this.rooms.get(room_id);
+
+    if (room === undefined) {
+      Logger.log('ルームが存在しない', 'add_queue');
+      return;
+    }
+
+    // ownerかどうかのチェック
+    if (room.roomMaster === client.id) {
+      // ownerの場合
+      const queueItem: QueueItem | undefined = room.playlist.pop();
+
+      if (!queueItem) return;
+
+      this.sendNewVideo(room.id, queueItem);
+      this.sendNewPlaylist(room.id, room.playlist.data);
+    }
+  }
+
+  /**
+   * 入室時にルームにいる人の情報を取得する
+   * @param client
+   * @returns
+   */
+  @SubscribeMessage('get_users')
+  getUsersHandler(client: Socket): { name: string; id: string }[] {
+    const room_id: string | null = this.getRoomId(client);
+    if (!room_id) return [];
+    return this.websocketService.getUsers(this.rooms.get(room_id));
+  }
+
+  /**
+   * チャット受取時の処理
+   * @param client
+   * @param msg
+   * @returns
+   */
+  @SubscribeMessage('post_chat')
+  postChatHandler(client: Socket, msg?: string) {
+    // ルームIDを取得
+    const room_id: string | null = this.getRoomId(client);
+
+    // TODO: データのチェック
+    if (!room_id || !msg) return;
+
+    this.server.to(room_id).emit('new_chat', {
+      id: client.id,
+      name: this.users.getUser(client.id)?.name || 'undefined User',
+      msg: msg
+    });
   }
 
   /**
@@ -357,13 +531,18 @@ export class WebsocketGateway {
     this.server.to(room_master_id).emit('request_playing_data', participant_id);
   }
 
+  /** 次のvideoを再生 */
+  sendNewVideo(room_id: string, videoData: QueueItem) {
+    this.server.to(room_id).emit('new_video', { videoData: videoData });
+  }
+
   /**
-   * queueの情報をルーム全体に送信
+   * 新しいプレイリストの情報をルームに送信
    * @param room_id {string} ルームID
-   * @param queue {string[]} queueの情報
+   * @param playlist {QueueItem[]} プレイリスト
    */
-  sendNewQueue(room_id: string, queue: string[]) {
-    this.server.to(room_id).emit('new_queue', { queue });
+  sendNewPlaylist(room_id: string, playlist: QueueItem[]) {
+    this.server.to(room_id).emit('new_playlist', { playlist });
   }
 
   /**
@@ -398,6 +577,12 @@ export class WebsocketGateway {
 export type CreateRoomRes = {
   result: boolean;
   room_id?: string;
+  userList?: { id: string; name: string }[];
+};
+
+export type JoinRoomRes = {
+  result: boolean;
+  userList?: { id: string; name: string }[];
 };
 
 export type NewMsgRes = {
@@ -416,4 +601,6 @@ export type PlayingData = {
   time: number;
   /** 再生中かどうか */
   isPlaying: boolean;
+  /** プレイリスト情報 */
+  playlistItem: QueueItem;
 };
