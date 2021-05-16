@@ -533,7 +533,7 @@ export class WebsocketGateway {
 
   /** 次のvideoを再生 */
   sendNewVideo(room_id: string, videoData: QueueItem) {
-    this.server.to(room_id).emit('youtube_add_movie', { videoData: videoData });
+    this.server.to(room_id).emit('new_video', { videoData: videoData });
   }
 
   /**
