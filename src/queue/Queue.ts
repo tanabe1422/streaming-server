@@ -32,8 +32,8 @@ export class Queue {
    * 先頭の動画IDを抜き出す
    * @returns {string|undefined} 先頭の動画ID
    */
-  pop(): QueueItem | undefined {
-    return this._data.pop();
+  getNext(): QueueItem | undefined {
+    return this._data.shift();
   }
 
   /** プレイリストを入れ替える */

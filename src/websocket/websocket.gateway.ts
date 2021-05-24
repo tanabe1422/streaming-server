@@ -479,7 +479,7 @@ export class WebsocketGateway {
     // ownerかどうかのチェック
     if (room.roomMaster === client.id) {
       // ownerの場合
-      const queueItem: QueueItem | undefined = room.playlist.pop();
+      const queueItem: QueueItem | undefined = room.playlist.getNext();
 
       if (!queueItem) return;
 
